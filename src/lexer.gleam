@@ -1,7 +1,8 @@
-import gleam/list
-import gleam/string
 import gleam/int
-import gleam/option.{Some, None}
+import gleam/list
+import gleam/option.{None, Some}
+import gleam/result
+import gleam/string
 import simplifile
 import token.{type Token}
 
@@ -28,13 +29,17 @@ fn do_lex(source: String, acc: Program) -> ProgramResult {
         "*" -> do_lex(rest, [token.Token(token.Star, None), ..acc])
         "." -> do_lex(rest, [token.Token(token.Dot, None), ..acc])
         "/" -> do_lex(rest, [token.Token(token.Slash, None), ..acc])
-        c -> 
+        c ->
           case is_digit(c) {
             True -> {
-              let val = read_number()
-              do_lex(rest, [token.Token(token.Number, Some(val))])
+              let #(rest, val) = read_number(source)
+              do_lex(rest, [token.Token(token.Number, Some(val)), ..acc])
             }
-            False -> Error("SyntaxError: Unrecognized character: " <> c)
+            False ->
+              case is_whitespace(c) {
+                True -> do_lex(rest, acc)
+                False -> Error("SyntaxError: Unrecognized character: " <> c)
+              }
           }
       }
   }
@@ -47,6 +52,25 @@ fn is_digit(to_check: String) -> Bool {
   }
 }
 
-fn read_number() {
-  todo
+fn is_whitespace(to_check: String) -> Bool {
+  case to_check {
+    " " -> True
+    "\t" -> True
+    _ -> False
+  }
+}
+
+fn read_number(source: String) -> #(String, Int) {
+  do_read_number(source, "")
+}
+
+fn do_read_number(source: String, acc: String) -> #(String, Int) {
+  case string.pop_grapheme(source) {
+    Error(Nil) -> #("", int.parse(acc) |> result.unwrap(0))
+    Ok(#(first, rest)) ->
+      case is_digit(first) {
+        True -> do_read_number(rest, acc <> first)
+        False -> #(rest, int.parse(acc) |> result.unwrap(0))
+      }
+  }
 }

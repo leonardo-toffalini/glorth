@@ -1,9 +1,11 @@
+import gleam/option.{None, Some}
+import gleam/result
 import gleeunit
 import gleeunit/should
+import interpreter
 import lexer
 import stack
 import token
-import gleam/option.{None}
 
 pub fn main() {
   gleeunit.main()
@@ -27,4 +29,21 @@ pub fn lexer_test() {
   let filepath = "examples/add.forth"
   lexer.lex(filepath)
   |> should.equal(Ok([token.Token(token.Plus, None)]))
+
+  let filepath = "examples/numbers.forth"
+  lexer.lex(filepath)
+  |> should.equal(
+    Ok([
+      token.Token(token.Number, Some(42)),
+      token.Token(token.Number, Some(27)),
+      token.Token(token.Plus, None),
+      token.Token(token.Dot, None),
+    ]),
+  )
+}
+
+pub fn interp_test() {
+  let filepath = "examples/numbers.forth"
+  let program = lexer.lex(filepath) |> result.unwrap([])
+  interpreter.run(program)
 }
