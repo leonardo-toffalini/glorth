@@ -8,9 +8,12 @@ import token.{type Token}
 pub type InterpResult =
   Result(Nil, String)
 
-pub fn run(program: Program) -> InterpResult {
+pub fn run(program: Program) -> Nil {
   let stack = stack.new()
-  interp(program, stack)
+  case interp(program, stack) {
+    Ok(_) -> io.println("ok")
+    Error(text) -> io.println(text)
+  }
 }
 
 fn interp(program: Program, stack: Stack) -> InterpResult {
