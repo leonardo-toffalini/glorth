@@ -1,3 +1,4 @@
+import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/option
@@ -6,7 +7,10 @@ import stack.{type Stack}
 import token.{type Token}
 
 pub type InterpResult =
-  Result(Nil, String)
+  Result(Stack, String)
+
+pub type Words =
+  Dict(String, Program)
 
 pub fn run(program: Program) -> Nil {
   let stack = stack.new()
@@ -18,7 +22,7 @@ pub fn run(program: Program) -> Nil {
 
 fn interp(program: Program, stack: Stack) -> InterpResult {
   case program {
-    [] -> Ok(Nil)
+    [] -> Ok(stack)
     [first, ..rest] ->
       case first.token_type {
         token.Number -> number(first, rest, stack)
@@ -27,7 +31,8 @@ fn interp(program: Program, stack: Stack) -> InterpResult {
         token.Star -> star(rest, stack)
         token.Slash -> slash(rest, stack)
         token.Dot -> dot(rest, stack)
-        // _ -> Error("Unrecognized token")
+        token.Word -> word(first, rest, stack)
+        _ -> Error("Unrecognized token")
       }
   }
 }
@@ -86,5 +91,12 @@ fn dot(program: Program, stack: Stack) -> InterpResult {
       val |> int.to_string |> io.println
       interp(program, stack)
     }
+  }
+}
+
+fn word(t: Token, rest: Program, stack: Stack) -> InterpResult {
+  case option.unwrap(t.definition, []) |> interp(stack) {
+    Error(e) -> Error(e)
+    Ok(stack) -> interp(rest, stack)
   }
 }

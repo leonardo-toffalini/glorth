@@ -1,4 +1,5 @@
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -24,16 +25,25 @@ fn do_lex(source: String, acc: Program) -> ProgramResult {
     Error(Nil) -> Ok(list.reverse(acc))
     Ok(#(first, rest)) ->
       case first {
-        "+" -> do_lex(rest, [token.Token(token.Plus, None), ..acc])
-        "-" -> do_lex(rest, [token.Token(token.Minus, None), ..acc])
-        "*" -> do_lex(rest, [token.Token(token.Star, None), ..acc])
-        "." -> do_lex(rest, [token.Token(token.Dot, None), ..acc])
-        "/" -> do_lex(rest, [token.Token(token.Slash, None), ..acc])
+        "+" -> do_lex(rest, [token.Token(token.Plus, None, None, None), ..acc])
+        "-" -> do_lex(rest, [token.Token(token.Minus, None, None, None), ..acc])
+        "*" -> do_lex(rest, [token.Token(token.Star, None, None, None), ..acc])
+        "." -> do_lex(rest, [token.Token(token.Dot, None, None, None), ..acc])
+        "/" -> do_lex(rest, [token.Token(token.Slash, None, None, None), ..acc])
+        ":" -> {
+          case lex_word(rest) {
+            Error(e) -> Error(e)
+            Ok(#(token, rest)) -> do_lex(rest, [token, ..acc])
+          }
+        }
         c ->
           case is_digit(c) {
             True -> {
               let #(rest, val) = read_number(source)
-              do_lex(rest, [token.Token(token.Number, Some(val)), ..acc])
+              do_lex(rest, [
+                token.Token(token.Number, Some(val), None, None),
+                ..acc
+              ])
             }
             False ->
               case is_whitespace(c) {
@@ -60,6 +70,16 @@ fn is_whitespace(to_check: String) -> Bool {
   }
 }
 
+fn is_alpha(to_check: String) -> Bool {
+  let assert [first, ..] = string.to_utf_codepoints(to_check)
+  let n = first |> string.utf_codepoint_to_int
+  case n >= 65, n <= 90, n >= 96, n <= 122 {
+    True, True, _, _ -> True
+    _, _, True, True -> True
+    _, _, _, _ -> False
+  }
+}
+
 fn read_number(source: String) -> #(String, Int) {
   do_read_number(source, "")
 }
@@ -71,6 +91,59 @@ fn do_read_number(source: String, acc: String) -> #(String, Int) {
       case is_digit(first) {
         True -> do_read_number(rest, acc <> first)
         False -> #(rest, int.parse(acc) |> result.unwrap(0))
+      }
+  }
+}
+
+// example word: `: X 42 27 + . ;`
+fn lex_word(source: String) -> Result(#(Token, String), String) {
+  let res = source |> string.trim |> do_read_word("")
+  case res {
+    Error(e) -> Error(e)
+    Ok(#(source, ident)) -> {
+      let raw_program = do_read_program(source, "")
+      case raw_program {
+        Error(e) -> Error(e)
+        Ok(#(prog, rest)) -> {
+          case do_lex(prog, []) {
+            Error(e) -> Error(e)
+            Ok(prog) ->
+              Ok(#(token.Token(token.Word, None, Some(prog), Some(ident)), rest))
+          }
+        }
+      }
+    }
+  }
+}
+
+fn do_read_word(
+  source: String,
+  acc: String,
+) -> Result(#(String, String), String) {
+  case string.pop_grapheme(source) {
+    Error(Nil) -> Error("SyntaxError: Unterminated word definition.")
+    Ok(#(first, rest)) ->
+      case is_alpha(first) {
+        True -> do_read_word(rest, acc <> first)
+        False ->
+          case acc {
+            "" -> Error("SyntaxError: Empty word identifier.")
+            _ -> Ok(#(rest, acc))
+          }
+      }
+  }
+}
+
+fn do_read_program(
+  source: String,
+  acc: String,
+) -> Result(#(String, String), String) {
+  case string.pop_grapheme(source) {
+    Error(Nil) -> Error("SyntaxError: Unterminated word definition.")
+    Ok(#(first, rest)) ->
+      case first {
+        ";" -> Ok(#(acc, rest))
+        _ -> do_read_program(rest, acc <> first)
       }
   }
 }
