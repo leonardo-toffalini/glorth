@@ -2,6 +2,7 @@ import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
 import gleam/option.{None, Some}
+import gleam/result
 import lexer.{type Program}
 import stack.{type Stack}
 import token.{type Token}
@@ -105,10 +106,10 @@ fn dot(program: Program, stack: Stack, words: Words) -> InterpResult {
 
 fn word_def(t: Token, rest: Program, stack: Stack, words: Words) -> InterpResult {
   case t.definition {
-    None -> Error("SyntaxError: Empty definition for word.")
+    None -> Error("RuntimeError: Empty definition for word.")
     Some(prog) -> {
       case t.ident {
-        None -> Error("SyntaxError: Empty ident for word.")
+        None -> Error("RuntimeError: Empty ident for word.")
         Some(id) -> {
           dict.insert(words, for: id, insert: prog)
           |> interp(rest, stack, _)
@@ -120,7 +121,15 @@ fn word_def(t: Token, rest: Program, stack: Stack, words: Words) -> InterpResult
 
 fn word(t: Token, rest: Program, stack: Stack, words: Words) -> InterpResult {
   case t.ident {
-    Some(id) -> todo
-    None -> todo
+    None -> Error("RuntimeError: Empty ident for word.")
+    Some(id) -> {
+      case dict.get(words, id) {
+        Error(Nil) -> Error("RuntimeError: Using undefined word.")
+        Ok(p) -> {
+          use stack <- result.try(interp(p, stack, words))
+          interp(rest, stack, words)
+        }
+      }
+    }
   }
 }

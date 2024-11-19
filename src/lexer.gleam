@@ -1,5 +1,4 @@
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -31,7 +30,7 @@ fn do_lex(source: String, acc: Program) -> ProgramResult {
         "." -> do_lex(rest, [token.Token(token.Dot, None, None, None), ..acc])
         "/" -> do_lex(rest, [token.Token(token.Slash, None, None, None), ..acc])
         ":" -> {
-          case lex_word(rest) {
+          case lex_word_def(rest) {
             Error(e) -> Error(e)
             Ok(#(token, rest)) -> do_lex(rest, [token, ..acc])
           }
@@ -48,7 +47,17 @@ fn do_lex(source: String, acc: Program) -> ProgramResult {
             False ->
               case is_whitespace(c) {
                 True -> do_lex(rest, acc)
-                False -> Error("SyntaxError: Unrecognized character: " <> c)
+                False ->
+                  case is_alpha(c) {
+                    True -> {
+                      let #(r, id) = lex_word(source)
+                      do_lex(r, [
+                        token.Token(token.Word, None, None, Some(id)),
+                        ..acc
+                      ])
+                    }
+                    False -> Error("SyntaxError: Unrecognized character: " <> c)
+                  }
               }
           }
       }
@@ -80,10 +89,12 @@ fn is_alpha(to_check: String) -> Bool {
   }
 }
 
+/// returns: rest, number literal
 fn read_number(source: String) -> #(String, Int) {
   do_read_number(source, "")
 }
 
+/// returns: rest, number literal
 fn do_read_number(source: String, acc: String) -> #(String, Int) {
   case string.pop_grapheme(source) {
     Error(Nil) -> #("", int.parse(acc) |> result.unwrap(0))
@@ -95,48 +106,41 @@ fn do_read_number(source: String, acc: String) -> #(String, Int) {
   }
 }
 
-// example word: `: X 42 27 + . ;`
-fn lex_word(source: String) -> Result(#(Token, String), String) {
-  let res = source |> string.trim |> do_read_word("")
-  case res {
+/// returns: Ok(Token.WordDef, rest) or Error(SyntaxError text)
+/// example word: `: X 42 27 + . ;`
+fn lex_word_def(source: String) -> Result(#(Token, String), String) {
+  let #(source, ident) = source |> string.trim |> do_read_word("")
+  let raw_program = do_read_program(source, "")
+  case raw_program {
     Error(e) -> Error(e)
-    Ok(#(source, ident)) -> {
-      let raw_program = do_read_program(source, "")
-      case raw_program {
+    Ok(#(prog, rest)) -> {
+      case do_lex(prog, []) {
         Error(e) -> Error(e)
-        Ok(#(prog, rest)) -> {
-          case do_lex(prog, []) {
-            Error(e) -> Error(e)
-            Ok(prog) ->
-              Ok(#(
-                token.Token(token.WordDef, None, Some(prog), Some(ident)),
-                rest,
-              ))
-          }
-        }
+        Ok(prog) ->
+          Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
       }
     }
   }
 }
 
-fn do_read_word(
-  source: String,
-  acc: String,
-) -> Result(#(String, String), String) {
+/// returns: rest, identifier
+fn lex_word(source: String) -> #(String, String) {
+  do_read_word(source, "")
+}
+
+/// returns: rest, identifier
+fn do_read_word(source: String, acc: String) -> #(String, String) {
   case string.pop_grapheme(source) {
-    Error(Nil) -> Error("SyntaxError: Unterminated word definition.")
+    Error(Nil) -> #("", acc)
     Ok(#(first, rest)) ->
       case is_alpha(first) {
         True -> do_read_word(rest, acc <> first)
-        False ->
-          case acc {
-            "" -> Error("SyntaxError: Empty word identifier.")
-            _ -> Ok(#(rest, acc))
-          }
+        False -> #(rest, acc)
       }
   }
 }
 
+/// returns: Ok(raw_program, rest) or Error(SyntaxError text)
 fn do_read_program(
   source: String,
   acc: String,
