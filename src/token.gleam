@@ -7,6 +7,7 @@ pub type TokenType {
   Slash
   Dot
   Number
+  WordDef
   Word
 }
 

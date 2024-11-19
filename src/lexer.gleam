@@ -108,7 +108,7 @@ fn lex_word(source: String) -> Result(#(Token, String), String) {
           case do_lex(prog, []) {
             Error(e) -> Error(e)
             Ok(prog) ->
-              Ok(#(token.Token(token.Word, None, Some(prog), Some(ident)), rest))
+              Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
           }
         }
       }

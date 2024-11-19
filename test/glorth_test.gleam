@@ -48,7 +48,7 @@ pub fn lexer_test() {
   let filepath = "examples/word.forth"
   lexer.lex(filepath)
   |> should.equal(Ok([
-    token.Token(token.Word, None, Some([
+    token.Token(token.WordDef, None, Some([
       token.Token(token.Number, Some(42), None, None),
       token.Token(token.Number, Some(27), None, None),
       token.Token(token.Plus, None, None, None),
