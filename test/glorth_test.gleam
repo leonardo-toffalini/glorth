@@ -60,6 +60,7 @@ pub fn lexer_test() {
         ]),
         Some("X"),
       ),
+    token.Token(token.Word, None, None, Some("X"))
     ]),
   )
 }
