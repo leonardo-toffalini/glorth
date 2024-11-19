@@ -47,21 +47,27 @@ pub fn lexer_test() {
 
   let filepath = "examples/word.forth"
   lexer.lex(filepath)
-  |> should.equal(Ok([
-    token.Token(token.WordDef, None, Some([
-      token.Token(token.Number, Some(42), None, None),
-      token.Token(token.Number, Some(27), None, None),
-      token.Token(token.Plus, None, None, None),
-      token.Token(token.Dot, None, None, None),
-    ]), Some("X"))
-  ]))
+  |> should.equal(
+    Ok([
+      token.Token(
+        token.WordDef,
+        None,
+        Some([
+          token.Token(token.Number, Some(42), None, None),
+          token.Token(token.Number, Some(27), None, None),
+          token.Token(token.Plus, None, None, None),
+          token.Token(token.Dot, None, None, None),
+        ]),
+        Some("X"),
+      ),
+    ]),
+  )
 }
 
 pub fn interp_test() {
   let filepath = "examples/numbers.forth"
   let program = lexer.lex(filepath) |> result.unwrap([])
   interpreter.run(program)
-
 
   let filepath = "examples/word.forth"
   let program = lexer.lex(filepath) |> result.unwrap([])

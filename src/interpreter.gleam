@@ -1,7 +1,7 @@
 import gleam/dict.{type Dict}
 import gleam/int
 import gleam/io
-import gleam/option.{Some, None}
+import gleam/option.{None, Some}
 import lexer.{type Program}
 import stack.{type Stack}
 import token.{type Token}
@@ -39,8 +39,15 @@ fn interp(program: Program, stack: Stack, words: Words) -> InterpResult {
   }
 }
 
-fn number(first: Token, rest: Program, stack: Stack, words: Words) -> InterpResult {
-  option.unwrap(first.literal, 0) |> stack.push(stack, _) |> interp(rest, _, words)
+fn number(
+  first: Token,
+  rest: Program,
+  stack: Stack,
+  words: Words,
+) -> InterpResult {
+  option.unwrap(first.literal, 0)
+  |> stack.push(stack, _)
+  |> interp(rest, _, words)
 }
 
 fn plus(program: Program, stack: Stack, words: Words) -> InterpResult {
@@ -103,8 +110,8 @@ fn word_def(t: Token, rest: Program, stack: Stack, words: Words) -> InterpResult
       case t.ident {
         None -> Error("SyntaxError: Empty ident for word.")
         Some(id) -> {
-          dict.insert(words, for: id, insert: prog) |>
-          interp(rest, stack, _)
+          dict.insert(words, for: id, insert: prog)
+          |> interp(rest, stack, _)
         }
       }
     }
