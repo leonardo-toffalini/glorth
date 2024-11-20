@@ -66,11 +66,63 @@ pub fn lexer_test() {
 }
 
 pub fn interp_test() {
-  let filepath = "examples/numbers.forth"
-  let program = lexer.lex(filepath) |> result.unwrap([])
-  interpreter.run(program)
+  // number test
+  let source = "1 2 3 4 5 6 7 8 9"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([9, 8, 7, 6, 5, 4, 3, 2, 1])
 
-  let filepath = "examples/word.forth"
-  let program = lexer.lex(filepath) |> result.unwrap([])
-  interpreter.run(program)
+  // plus test
+  let source = "1 1 42 27 +"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([69, 1, 1])
+
+  // minus test
+  let source = "2 2 42 27 -"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([15, 2, 2])
+
+  // multiply test
+  let source = "3 3 42 27 *"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([1134, 3, 3])
+
+  // division test
+  let source = "4 4 84 42 /"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([2, 4, 4])
+
+  // less test 1
+  let source = "5 5 10 13 <"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([1, 5, 5])
+
+  // less test 2
+  let source = "6 6 13 10 <"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([0, 6, 6])
+
+  // greater test 1
+  let source = "7 7 10 13 >"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([0, 7, 7])
+
+  // greater test 2
+  let source = "8 8 13 10 >"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([1, 8, 8])
+
+  // word test
+  let source = "1 : X 42 27 + . ; 2 X 3"
+  use program <- result.try(lexer.lex_raw(source))
+  use stack <- result.map(interpreter.run(program))
+  stack |> should.equal([3, 69, 2, 1])
 }
