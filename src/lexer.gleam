@@ -12,11 +12,17 @@ pub type Program =
 pub type ProgramResult =
   Result(Program, String)
 
+/// Given a filepath as input, this funcion lexes the contetnts of that file.
 pub fn lex(filepath: String) -> ProgramResult {
   case simplifile.read(filepath) {
     Ok(source) -> source |> string.trim |> do_lex([])
     Error(_) -> Error("FileError: Error opening file: " <> filepath)
   }
+}
+
+/// Given a string as input, this function lexes that string.
+pub fn lex_raw(source: String) -> ProgramResult {
+  source |> string.trim |> do_lex([])
 }
 
 fn do_lex(source: String, acc: Program) -> ProgramResult {

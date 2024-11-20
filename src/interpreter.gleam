@@ -32,6 +32,8 @@ fn interp(program: Program, stack: Stack, words: Words) -> InterpResult {
         token.Dot -> dot(rest, stack, words)
         token.WordDef -> word_def(first, rest, stack, words)
         token.Word -> word(first, rest, stack, words)
+        token.Less -> less(rest, stack, words)
+        token.Greater -> greater(rest, stack, words)
         _ -> Error("Unrecognized token")
       }
   }
@@ -48,59 +50,98 @@ fn number(
   |> interp(rest, _, words)
 }
 
+/// forth: x y +  <=>  python: x + y
 fn plus(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..rest] -> stack.push(rest, a + b) |> interp(program, _, words)
+    [rhs, lhs, ..rest] ->
+      stack.push(rest, lhs + rhs) |> interp(program, _, words)
     _ ->
       Error(
-        "RuntimeError: Cannot do operation '+' because there are less than 2 numbers on the stack.",
+        "RuntimeError: Cannot do operation '+' lhsecause there are less than 2 numbers on the stack.",
       )
   }
 }
 
+/// forth: x y -  <=>  python: x - y
 fn minus(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..rest] -> stack.push(rest, a - b) |> interp(program, _, words)
+    [rhs, lhs, ..rest] ->
+      stack.push(rest, lhs - rhs) |> interp(program, _, words)
     _ ->
       Error(
-        "RuntimeError: Cannot do operation '-' because there are less than 2 numbers on the stack.",
+        "RuntimeError: Cannot do operation '-' lhsecause there are less than 2 numbers on the stack.",
       )
   }
 }
 
+/// forth: x y *  <=>  python: x * y
 fn star(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..rest] -> stack.push(rest, a * b) |> interp(program, _, words)
+    [rhs, lhs, ..rest] ->
+      stack.push(rest, lhs * rhs) |> interp(program, _, words)
     _ ->
       Error(
-        "RuntimeError: Cannot do operation '*' because there are less than 2 numbers on the stack.",
+        "RuntimeError: Cannot do operation '*' lhsecause there are less than 2 numbers on the stack.",
       )
   }
 }
 
+/// forth: x y /  <=>  python: x / y
 fn slash(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..rest] -> stack.push(rest, a / b) |> interp(program, _, words)
+    [rhs, lhs, ..rest] ->
+      stack.push(rest, lhs / rhs) |> interp(program, _, words)
     _ ->
       Error(
-        "RuntimeError: Cannot do operation '/' because there are less than 2 numbers on the stack.",
+        "RuntimeError: Cannot do operation '/' lhsecause there are less than 2 numbers on the stack.",
+      )
+  }
+}
+
+/// forth: x y <  <=>  python: x < y
+fn less(program: Program, stack: Stack, words: Words) -> InterpResult {
+  case stack {
+    [rhs, lhs, ..rest] ->
+      case lhs < rhs {
+        True -> stack.push(rest, 1) |> interp(program, _, words)
+        False -> stack.push(rest, 0) |> interp(program, _, words)
+      }
+    _ ->
+      Error(
+        "RuntimeError: Cannot do operation '<' lhsecause there are less than 2 numbers on the stack.",
+      )
+  }
+}
+
+/// forth: x y >  <=>  python: x > y
+fn greater(program: Program, stack: Stack, words: Words) -> InterpResult {
+  case stack {
+    [rhs, lhs, ..rest] ->
+      case lhs > rhs {
+        True -> stack.push(rest, 1) |> interp(program, _, words)
+        False -> stack.push(rest, 0) |> interp(program, _, words)
+      }
+    _ ->
+      Error(
+        "RuntimeError: Cannot do operation '<' lhsecause there are less than 2 numbers on the stack.",
       )
   }
 }
 
 fn dot(program: Program, stack: Stack, words: Words) -> InterpResult {
-  case stack.get(stack) {
-    Error(Nil) ->
+  case stack {
+    [] ->
       Error(
-        "RuntimeError: Cannot do operation '.' because the stack is empty and there is nothing to output.",
+        "RuntimeError: Cannot do operation '.' lhsecause the stack is empty and there is nothing to output.",
       )
-    Ok(val) -> {
+    [val, ..] -> {
       val |> int.to_string |> io.println
       interp(program, stack, words)
     }
   }
 }
 
+/// forth: : word-id program ;
 fn word_def(t: Token, rest: Program, stack: Stack, words: Words) -> InterpResult {
   case t.definition {
     None -> Error("RuntimeError: Empty definition for word.")
