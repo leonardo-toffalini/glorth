@@ -1,11 +1,20 @@
 import gleam/option.{type Option}
 
 pub type TokenType {
+  // binary operators
   Plus
   Minus
   Star
   Slash
+  Greater
+  GreaterEqual
+  Less
+  LessEqual
+
+  // unary operator
   Dot
+
+  // other
   Number
   WordDef
   Word

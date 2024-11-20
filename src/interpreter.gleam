@@ -13,13 +13,10 @@ pub type InterpResult =
 pub type Words =
   Dict(String, Program)
 
-pub fn run(program: Program) -> Nil {
+pub fn run(program: Program) -> InterpResult {
   let stack = stack.new()
   let words = dict.new()
-  case interp(program, stack, words) {
-    Ok(_) -> io.println("ok")
-    Error(text) -> io.println(text)
-  }
+  interp(program, stack, words)
 }
 
 fn interp(program: Program, stack: Stack, words: Words) -> InterpResult {
@@ -53,7 +50,7 @@ fn number(
 
 fn plus(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..] -> stack.push(stack, a + b) |> interp(program, _, words)
+    [a, b, ..rest] -> stack.push(rest, a + b) |> interp(program, _, words)
     _ ->
       Error(
         "RuntimeError: Cannot do operation '+' because there are less than 2 numbers on the stack.",
@@ -63,7 +60,7 @@ fn plus(program: Program, stack: Stack, words: Words) -> InterpResult {
 
 fn minus(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..] -> stack.push(stack, a - b) |> interp(program, _, words)
+    [a, b, ..rest] -> stack.push(rest, a - b) |> interp(program, _, words)
     _ ->
       Error(
         "RuntimeError: Cannot do operation '-' because there are less than 2 numbers on the stack.",
@@ -73,7 +70,7 @@ fn minus(program: Program, stack: Stack, words: Words) -> InterpResult {
 
 fn star(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..] -> stack.push(stack, a * b) |> interp(program, _, words)
+    [a, b, ..rest] -> stack.push(rest, a * b) |> interp(program, _, words)
     _ ->
       Error(
         "RuntimeError: Cannot do operation '*' because there are less than 2 numbers on the stack.",
@@ -83,7 +80,7 @@ fn star(program: Program, stack: Stack, words: Words) -> InterpResult {
 
 fn slash(program: Program, stack: Stack, words: Words) -> InterpResult {
   case stack {
-    [a, b, ..] -> stack.push(stack, a / b) |> interp(program, _, words)
+    [a, b, ..rest] -> stack.push(rest, a / b) |> interp(program, _, words)
     _ ->
       Error(
         "RuntimeError: Cannot do operation '/' because there are less than 2 numbers on the stack.",

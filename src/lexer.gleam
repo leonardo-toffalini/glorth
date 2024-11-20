@@ -29,6 +29,9 @@ fn do_lex(source: String, acc: Program) -> ProgramResult {
         "*" -> do_lex(rest, [token.Token(token.Star, None, None, None), ..acc])
         "." -> do_lex(rest, [token.Token(token.Dot, None, None, None), ..acc])
         "/" -> do_lex(rest, [token.Token(token.Slash, None, None, None), ..acc])
+        "<" -> do_lex(rest, [token.Token(token.Less, None, None, None), ..acc])
+        ">" ->
+          do_lex(rest, [token.Token(token.Greater, None, None, None), ..acc])
         ":" -> {
           case lex_word_def(rest) {
             Error(e) -> Error(e)
