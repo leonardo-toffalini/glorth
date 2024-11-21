@@ -1,4 +1,5 @@
 import gleam/int
+import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -12,61 +13,64 @@ pub type Program =
 pub type ProgramResult =
   Result(Program, String)
 
+pub type Chars =
+  List(String)
+
 /// Given a filepath as input, this funcion lexes the contetnts of that file.
 pub fn lex(filepath: String) -> ProgramResult {
   case simplifile.read(filepath) {
-    Ok(source) -> source |> string.trim |> do_lex([])
+    Ok(source) -> source |> string.trim |> string.to_graphemes |> do_lex([])
     Error(_) -> Error("FileError: Error opening file: " <> filepath)
   }
 }
 
 /// Given a string as input, this function lexes that string.
 pub fn lex_raw(source: String) -> ProgramResult {
-  source |> string.trim |> do_lex([])
+  source |> string.trim |> string.to_graphemes |> do_lex([])
 }
 
-fn do_lex(source: String, acc: Program) -> ProgramResult {
-  case string.pop_grapheme(source) {
-    Error(Nil) -> Ok(list.reverse(acc))
-    Ok(#(first, rest)) ->
-      case first {
-        "+" -> do_lex(rest, [token.Token(token.Plus, None, None, None), ..acc])
-        "-" -> do_lex(rest, [token.Token(token.Minus, None, None, None), ..acc])
-        "*" -> do_lex(rest, [token.Token(token.Star, None, None, None), ..acc])
-        "." -> do_lex(rest, [token.Token(token.Dot, None, None, None), ..acc])
-        "/" -> do_lex(rest, [token.Token(token.Slash, None, None, None), ..acc])
-        "<" -> do_lex(rest, [token.Token(token.Less, None, None, None), ..acc])
-        ">" ->
-          do_lex(rest, [token.Token(token.Greater, None, None, None), ..acc])
-        ":" -> {
-          case lex_word_def(rest) {
-            Error(e) -> Error(e)
-            Ok(#(token, rest)) -> do_lex(rest, [token, ..acc])
-          }
+fn do_lex(characters: Chars, acc: Program) -> ProgramResult {
+  case characters {
+    [] -> Ok(acc |> list.reverse)
+    ["+", ..rest] ->
+      do_lex(rest, [token.Token(token.Plus, None, None, None), ..acc])
+    ["-", ..rest] ->
+      do_lex(rest, [token.Token(token.Minus, None, None, None), ..acc])
+    ["*", ..rest] ->
+      do_lex(rest, [token.Token(token.Star, None, None, None), ..acc])
+    [".", ..rest] ->
+      do_lex(rest, [token.Token(token.Dot, None, None, None), ..acc])
+    ["/", ..rest] ->
+      do_lex(rest, [token.Token(token.Slash, None, None, None), ..acc])
+    ["<", ..rest] ->
+      do_lex(rest, [token.Token(token.Less, None, None, None), ..acc])
+    [">", ..rest] ->
+      do_lex(rest, [token.Token(token.Greater, None, None, None), ..acc])
+    [":", " ", ..rest] -> {
+      case lex_word_def(rest) {
+        Error(e) -> Error(e)
+        Ok(#(token, rest)) -> do_lex(rest, [token, ..acc])
+      }
+    }
+    [c, ..rest] ->
+      case is_digit(c) {
+        True -> {
+          let #(rest, val) = read_number(characters)
+          do_lex(rest, [token.Token(token.Number, Some(val), None, None), ..acc])
         }
-        c ->
-          case is_digit(c) {
-            True -> {
-              let #(rest, val) = read_number(source)
-              do_lex(rest, [
-                token.Token(token.Number, Some(val), None, None),
-                ..acc
-              ])
-            }
+        False ->
+          case is_whitespace(c) {
+            True -> do_lex(rest, acc)
             False ->
-              case is_whitespace(c) {
-                True -> do_lex(rest, acc)
-                False ->
-                  case is_alpha(c) {
-                    True -> {
-                      let #(r, id) = lex_word(source)
-                      do_lex(r, [
-                        token.Token(token.Word, None, None, Some(id)),
-                        ..acc
-                      ])
-                    }
-                    False -> Error("SyntaxError: Unrecognized character: " <> c)
-                  }
+              case is_alpha(c) {
+                True -> {
+                  let #(r, id) = lex_word(characters)
+                  do_lex(r, [
+                    token.Token(token.Word, None, None, Some(id)),
+                    ..acc
+                  ])
+                }
+                False -> Error("SyntaxError: Unrecognized character: " <> c)
               }
           }
       }
@@ -99,67 +103,73 @@ fn is_alpha(to_check: String) -> Bool {
 }
 
 /// returns: rest, number literal
-fn read_number(source: String) -> #(String, Int) {
-  do_read_number(source, "")
+fn read_number(characters: Chars) -> #(Chars, Int) {
+  do_read_number(characters, [])
 }
 
 /// returns: rest, number literal
-fn do_read_number(source: String, acc: String) -> #(String, Int) {
-  case string.pop_grapheme(source) {
-    Error(Nil) -> #("", int.parse(acc) |> result.unwrap(0))
-    Ok(#(first, rest)) ->
+fn do_read_number(characters: Chars, acc: Chars) -> #(Chars, Int) {
+  case characters {
+    [] -> #(
+      [],
+      acc
+        |> list.reverse
+        |> string.join(with: "")
+        |> int.parse
+        |> result.unwrap(0),
+    )
+    [first, ..rest] ->
       case is_digit(first) {
-        True -> do_read_number(rest, acc <> first)
-        False -> #(rest, int.parse(acc) |> result.unwrap(0))
+        True -> do_read_number(rest, [first, ..acc])
+        False -> #(
+          rest,
+          acc
+            |> list.reverse
+            |> string.join(with: "")
+            |> int.parse
+            |> result.unwrap(0),
+        )
       }
   }
 }
 
 /// returns: Ok(Token.WordDef, rest) or Error(SyntaxError text)
 /// example word: `: X 42 27 + . ;`
-fn lex_word_def(source: String) -> Result(#(Token, String), String) {
-  let #(source, ident) = source |> string.trim |> do_read_word("")
-  let raw_program = do_read_program(source, "")
-  case raw_program {
-    Error(e) -> Error(e)
-    Ok(#(prog, rest)) -> {
-      case do_lex(prog, []) {
-        Error(e) -> Error(e)
-        Ok(prog) ->
-          Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
-      }
-    }
-  }
+fn lex_word_def(characters: Chars) -> Result(#(Token, Chars), String) {
+  let #(characters, ident) = characters |> do_read_word([])
+  result.try(do_read_program(characters, []), fn(res) {
+    let #(prog, rest) = res
+    result.try(do_lex(prog, []), fn(prog) {
+      Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
+    })
+  })
 }
 
 /// returns: rest, identifier
-fn lex_word(source: String) -> #(String, String) {
-  do_read_word(source, "")
+fn lex_word(characters: Chars) -> #(Chars, String) {
+  do_read_word(characters, [])
 }
 
 /// returns: rest, identifier
-fn do_read_word(source: String, acc: String) -> #(String, String) {
-  case string.pop_grapheme(source) {
-    Error(Nil) -> #("", acc)
-    Ok(#(first, rest)) ->
+fn do_read_word(characters: Chars, acc: Chars) -> #(Chars, String) {
+  case characters {
+    [] -> #([], acc |> list.reverse |> string.join(with: ""))
+    [first, ..rest] ->
       case is_alpha(first) {
-        True -> do_read_word(rest, acc <> first)
-        False -> #(rest, acc)
+        True -> do_read_word(rest, [first, ..acc])
+        False -> #(rest, acc |> list.reverse |> string.join(with: ""))
       }
   }
 }
 
-/// returns: Ok(raw_program, rest) or Error(SyntaxError text)
+/// returns: Ok(body, rest) or Error(SyntaxError text)
 fn do_read_program(
-  source: String,
-  acc: String,
-) -> Result(#(String, String), String) {
-  case string.pop_grapheme(source) {
-    Error(Nil) -> Error("SyntaxError: Unterminated word definition.")
-    Ok(#(first, rest)) ->
-      case first {
-        ";" -> Ok(#(acc, rest))
-        _ -> do_read_program(rest, acc <> first)
-      }
+  characters: Chars,
+  acc: Chars,
+) -> Result(#(Chars, Chars), String) {
+  case characters {
+    [] -> Error("SyntaxError: Unterminated word definition.")
+    [";", ..rest] -> Ok(#(acc |> list.reverse, rest))
+    [first, ..rest] -> do_read_program(rest, [first, ..acc])
   }
 }
