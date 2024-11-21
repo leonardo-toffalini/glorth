@@ -1,5 +1,4 @@
 import gleam/int
-import gleam/io
 import gleam/list
 import gleam/option.{None, Some}
 import gleam/result
@@ -47,10 +46,8 @@ fn do_lex(characters: Chars, acc: Program) -> ProgramResult {
     [">", ..rest] ->
       do_lex(rest, [token.Token(token.Greater, None, None, None), ..acc])
     [":", " ", ..rest] -> {
-      case lex_word_def(rest) {
-        Error(e) -> Error(e)
-        Ok(#(token, rest)) -> do_lex(rest, [token, ..acc])
-      }
+      use #(token, rest) <- result.try(lex_word_def(rest))
+      do_lex(rest, [token, ..acc])
     }
     [c, ..rest] ->
       case is_digit(c) {
@@ -137,12 +134,9 @@ fn do_read_number(characters: Chars, acc: Chars) -> #(Chars, Int) {
 /// example word: `: X 42 27 + . ;`
 fn lex_word_def(characters: Chars) -> Result(#(Token, Chars), String) {
   let #(characters, ident) = characters |> do_read_word([])
-  result.try(do_read_program(characters, []), fn(res) {
-    let #(prog, rest) = res
-    result.try(do_lex(prog, []), fn(prog) {
-      Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
-    })
-  })
+  use #(prog, rest) <- result.try(do_read_program(characters, []))
+  use prog <- result.try(do_lex(prog, []))
+  Ok(#(token.Token(token.WordDef, None, Some(prog), Some(ident)), rest))
 }
 
 /// returns: rest, identifier
